@@ -23,7 +23,7 @@ open docs/index.html
 Einzelne Dateien gehen ebenso:
 
 ```sh
-python3 -m dbdoku datenbank.dacpac UKK-DB.dacpac -o docs/
+python3 -m dbdoku datenbank.dacpac fremd-db.dacpac -o docs/
 ```
 
 Optionen:
@@ -91,7 +91,7 @@ erkannt wurde, gilt als Lesezugriff.
 * **Dynamisches SQL** (`EXEC(@sql)`, `sp_executesql`) ist grundsätzlich nicht
   analysierbar – die betroffenen Objekte sind in der Ausgabe mit einem Hinweis
   markiert, ihre Abhängigkeitslisten können unvollständig sein.
-* **Fremde Datenbanken**: Zugriffe wie `[UKK-DB].dbo.CardCarrier` werden auf die
+* **Fremde Datenbanken**: Zugriffe wie `[Fremd-DB].dbo.Kunde` werden auf die
   Tabelle *jener* Datenbank abgebildet, sofern deren `.dacpac` mitgeladen ist –
   und niemals mit der gleichnamigen lokalen Tabelle verwechselt. Fehlt die
   Nachbardatenbank, bleibt der Verweis unverlinkt und wird auf der Katalogseite
@@ -108,13 +108,14 @@ verarbeitet werden soll:
    werden als `&#x1E;` o. ä. serialisiert; konforme Parser brechen mit
    `reference to invalid character number` ab. dbdoku ersetzt solche Referenzen
    beim Lesen durch `?` und meldet, wie oft das vorkam.
-2. Die Datei ist groß (bei `AbacusDbs` 45 MB entpackt). dbdoku streamt sie mit
-   `iterparse` und gibt jedes Objekt nach der Verarbeitung frei – Laufzeit rund
-   11 Sekunden für 23 Datenbanken mit 7.500 Objekten.
+2. Die Datei kann groß sein (bei umfangreichen Datenbanken einige zehn MB
+   entpackt). dbdoku streamt sie mit `iterparse` und gibt jedes Objekt nach der
+   Verarbeitung frei – Laufzeit rund 11 Sekunden für einen Katalog aus 23
+   Datenbanken mit 7.500 Objekten.
 
 Dazu kommt beim Zusammenführen: Datenbanknamen sind in SQL Server nicht
-groß-/kleinschreibungsempfindlich. Ein Verweis auf `[Faktura-DB]` meint dieselbe
-Datenbank wie die `.dacpac` namens `FAKTURA-DB`; `master.dacpac` und
+groß-/kleinschreibungsempfindlich. Ein Verweis auf `[Fremd-DB]` meint dieselbe
+Datenbank wie die `.dacpac` namens `FREMD-DB`; `master.dacpac` und
 `msdb.dacpac` tragen überhaupt keinen Namen und werden über den Dateinamen
 zugeordnet.
 
@@ -145,3 +146,7 @@ Tabelle zugeschrieben werden).
 | `dbdoku/highlight.py` | T-SQL-Einfärbung |
 | `dbdoku/render.py` | HTML-Erzeugung |
 | `dbdoku/assets/` | Stylesheet und Skript der erzeugten Seiten |
+
+## Lizenz
+
+MIT – siehe [LICENSE](LICENSE).

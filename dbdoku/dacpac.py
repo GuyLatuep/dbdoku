@@ -6,7 +6,7 @@ Zwei Besonderheiten machen das noetig:
    Steuerzeichen werden als ``&#x1E;`` o. ae. serialisiert; ein konformer Parser
    bricht darauf mit ``reference to invalid character number`` ab. Der
    ``_Sanitized``-Stream ersetzt solche Referenzen beim Lesen.
-2. Die Datei ist gross (bei AbacusDbs 45 MB). Ein DOM-Parse kostet ~1 GB RAM,
+2. Die Datei ist gross (bei grossen Datenbanken einige zehn MB). Ein DOM-Parse kostet ~1 GB RAM,
    deshalb wird gestreamt und nach jedem Top-Level-Objekt aufgeraeumt.
 """
 

@@ -115,7 +115,7 @@ class Resolver:
     """Bildet Namen aus dem Quelltext auf katalogweite Objekt-Ids ab.
 
     Kennt alle geladenen Datenbanken, damit dreiteilige Namen wie
-    ``[UKK-DB].dbo.CardCarrier`` auf die Tabelle *jener* Datenbank zeigen und
+    ``[Fremd-DB].dbo.Kunde`` auf die Tabelle *jener* Datenbank zeigen und
     nicht auf die gleichnamige der eigenen.
     """
 

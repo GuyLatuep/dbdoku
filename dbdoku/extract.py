@@ -73,7 +73,7 @@ def parse_ref(ref: ET.Element) -> Ref | None:
 
     external_db = None
     if "|" in name:
-        # Fremddatenbank: '[Faktura-DB]|[dbo].[blzrout].[Spalte]'
+        # Fremddatenbank: '[Fremd-DB]|[dbo].[Kunde].[Spalte]'
         db_part, name = name.split("|", 1)
         db_parts = split_name(db_part)
         external_db = db_parts[0] if db_parts else db_part

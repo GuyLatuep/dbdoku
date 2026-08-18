@@ -205,8 +205,8 @@ class Database:
     @property
     def key(self) -> str:
         """Katalogweiter Schluessel. SQL-Server-Datenbanknamen sind nicht
-        gross-/kleinschreibungsempfindlich: eine Referenz auf ``[Faktura-DB]``
-        meint dieselbe Datenbank wie die .dacpac namens ``FAKTURA-DB``."""
+        gross-/kleinschreibungsempfindlich: eine Referenz auf ``[Fremd-DB]``
+        meint dieselbe Datenbank wie die .dacpac namens ``FREMD-DB``."""
         return self.name.lower()
 
     def of_kind(self, kind: str) -> list[DbObject]:

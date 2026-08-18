@@ -2,12 +2,12 @@
 
 Jede .dacpac wird einzeln gelesen (:mod:`dbdoku.extract`) und kennt ihre
 Verweise auf andere Datenbanken bereits — DacFx notiert sie mit
-``ExternalSource`` und einem Namen der Form ``[Faktura-DB]|[dbo].[blzrout]``.
+``ExternalSource`` und einem Namen der Form ``[Fremd-DB]|[dbo].[Kunde]``.
 Hier werden diese Verweise auf die tatsaechlichen Objekte der Nachbar-.dacpac
 abgebildet, sodass aus einer bloßen Notiz ein echter Verweis wird.
 
 Objekt-Ids werden dabei katalogweit eindeutig gemacht: aus ``[dbo].[Person]``
-wird ``abacusdbs|[dbo].[Person]``. Zwei Datenbanken duerfen gleichnamige
+wird ``meinedb|[dbo].[Person]``. Zwei Datenbanken duerfen gleichnamige
 Tabellen haben, ohne sich zu ueberschreiben.
 """
 
@@ -71,7 +71,7 @@ def _resolve_cross_references(catalog: Catalog) -> None:
                     catalog.unresolved_dbs.setdefault(ref.external_db, ref.source or "")
                     continue
                 # Der Name der Nachbardatenbank kann anders geschrieben sein als
-                # im Verweis (``[Faktura-DB]`` vs. ``FAKTURA-DB``).
+                # im Verweis (``[Fremd-DB]`` vs. ``FREMD-DB``).
                 ref.external_db = other.name
                 ref.target = gid(other.key, ref.target)
                 ref.resolved = ref.target in catalog.objects
