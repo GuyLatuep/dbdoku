@@ -181,6 +181,14 @@ def flag(el: ET.Element, name: str) -> bool:
     return (prop(el, name) or "").lower() == "true"
 
 
+def annotation(el: ET.Element, type_name: str) -> ET.Element | None:
+    """Die erste ``<Annotation>`` eines Typs — dort steht z. B. der Kopftext."""
+    for ann in el.findall(f"{NS}Annotation"):
+        if ann.get("Type") == type_name:
+            return ann
+    return None
+
+
 def relationship(el: ET.Element, name: str) -> ET.Element | None:
     for rel in el.findall(f"{NS}Relationship"):
         if rel.get("Name") == name:

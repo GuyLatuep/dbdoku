@@ -22,7 +22,7 @@ from .model import KINDS
 
 
 def build(sources: list[Path], out: Path, title: str, write_json: bool,
-          quiet: bool) -> int:
+          quiet: bool, fulltext: bool = False) -> int:
     def say(msg: str) -> None:
         if not quiet:
             print(msg, file=sys.stderr)
@@ -63,8 +63,11 @@ def build(sources: list[Path], out: Path, title: str, write_json: bool,
         f"{cross} datenbankübergreifende Verweise")
 
     say(f"Schreibe nach {out} …")
-    renderer = render.Renderer(cat, g, out, title)
+    renderer = render.Renderer(cat, g, out, title, fulltext)
     written = renderer.write()
+    if fulltext:
+        size = (out / "assets" / "quelltext.js").stat().st_size
+        say(f"  Quelltextindex: {size / 1e6:.1f} MB (wird nur auf Wunsch geladen)")
     if write_json:
         (out / "model.json").write_text(
             json.dumps(_as_dict(cat), ensure_ascii=False, indent=1), encoding="utf-8")
@@ -134,6 +137,10 @@ def main(argv: list[str] | None = None) -> int:
                         help="Ausgabeordner (Standard: docs)")
     parser.add_argument("-t", "--titel", default="Datenbankkatalog",
                         help="Titel der Dokumentation")
+    parser.add_argument("--volltext", action="store_true",
+                        help="Quelltext der Routinen und Sichten durchsuchbar "
+                             "machen (eigener, großer Index, den die Suchseite "
+                             "erst auf Wunsch nachlädt)")
     parser.add_argument("--no-json", action="store_true",
                         help="model.json nicht mitschreiben")
     parser.add_argument("--check-links", action="store_true",
@@ -145,7 +152,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check_links:
         return check_links(args.quelle[0], args.quiet)
-    return build(args.quelle, args.out, args.titel, not args.no_json, args.quiet)
+    return build(args.quelle, args.out, args.titel, not args.no_json, args.quiet,
+                 args.volltext)
 
 
 if __name__ == "__main__":

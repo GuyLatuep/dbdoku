@@ -32,6 +32,7 @@ Optionen:
 |---|---|
 | `-o`, `--out` | Ausgabeordner (Standard: `docs`) |
 | `-t`, `--titel` | Titel der Dokumentation (Standard: „Datenbankkatalog“) |
+| `--volltext` | Quelltext der Routinen und Sichten durchsuchbar machen; schreibt zusätzlich `assets/quelltext.js` (bei großen Katalogen zweistellige MB), das die Suchseite erst lädt, wenn man dort „Quelltext durchsuchen“ einschaltet |
 | `--no-json` | `model.json` nicht mitschreiben (spart bei großen Katalogen einiges) |
 | `--check-links` | erzeugte Dokumentation auf tote Verweise prüfen: `python3 -m dbdoku --check-links docs/` |
 | `-q`, `--quiet` | keine Statusmeldungen |
@@ -68,7 +69,11 @@ welche Datenbank welche benutzt und wie oft.
 Datenbanken, die meistgenutzten Tabellen und die Einstiegspunkte.
 
 **Listenseiten** je Objektart und Datenbank, sortierbar und filterbar, sowie eine
-Suche über alle Datenbanken.
+Suche über alle Datenbanken. Die Suche kennt Objektnamen und Beschreibungen; mit
+`--volltext` erzeugt kommt auf der Suchseite ein Schalter „Quelltext
+durchsuchen“ dazu. Er lädt den Quelltextindex nach – das dauert einen Moment und
+kostet Arbeitsspeicher, deshalb ist er nicht voreingestellt – und findet danach
+auch Treffer im T-SQL, mit Fundstelle im Ausschnitt.
 
 Die Zugriffsart wird als `S I U D` angezeigt: **S**elect (liest),
 **I**nsert (fügt ein), **U**pdate (ändert), **D**elete (löscht).

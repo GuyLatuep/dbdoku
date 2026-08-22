@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 import zipfile
@@ -148,6 +149,39 @@ MODEL = f"""<?xml version="1.0" encoding="utf-8"?>
   <Element Type="SqlProcedure" Name="[dbo].[procHilf]">
    <Property Name="BodyScript"><Value><![CDATA[ SET @sql = 'SELECT 1' EXEC (@sql) ]]></Value></Property>
   </Element>
+  <Element Type="SqlScalarFunction" Name="[dbo].[fnKundeName]">
+   <Relationship Name="FunctionBody"><Entry>
+    <Element Type="SqlScriptFunctionImplementation">
+     <Property Name="BodyScript"><Value><![CDATA[
+    BEGIN
+     RETURN (SELECT TOP 1 Name FROM dbo.Kunde WHERE KundeId = @Id)
+    END]]></Value></Property>
+     <Annotation Type="SysCommentsObjectAnnotation">
+      <Property Name="HeaderContents" Value="CREATE FUNCTION [dbo].[fnKundeName] (@Id int) RETURNS nvarchar(80) AS" />
+     </Annotation>
+    </Element>
+   </Entry></Relationship>
+   <Relationship Name="BodyDependencies">
+    <Entry><References Name="[dbo].[Kunde]" /></Entry>
+   </Relationship>
+   <Relationship Name="Parameters"><Entry>
+    <Element Type="SqlSubroutineParameter" Name="[dbo].[fnKundeName].[@Id]">
+     <Relationship Name="Type"><Entry>
+      <Element Type="SqlTypeSpecifier"><Relationship Name="Type"><Entry>
+       <References ExternalSource="BuiltIns" Name="[int]" />
+      </Entry></Relationship></Element>
+     </Entry></Relationship>
+    </Element>
+   </Entry></Relationship>
+   <Relationship Name="Type"><Entry>
+    <Element Type="SqlTypeSpecifier">
+     <Property Name="Length" Value="80" />
+     <Relationship Name="Type"><Entry>
+      <References ExternalSource="BuiltIns" Name="[nvarchar]" />
+     </Entry></Relationship>
+    </Element>
+   </Entry></Relationship>
+  </Element>
   <Element Type="SqlTableType" Name="[dbo].[Kunde]">
    <Relationship Name="Columns"><Entry>
     <Element Type="SqlTableTypeSimpleColumn" Name="[dbo].[Kunde].[Id]">
@@ -290,6 +324,14 @@ class ExtractTest(Fixture, unittest.TestCase):
         self.assertEqual(proc.parameters[0].type, "nvarchar(80)")
         self.assertTrue(proc.sql.startswith("CREATE PROCEDURE"))
 
+    def test_funktion_hat_quelltext(self) -> None:
+        """Bei Funktionen liegen Kopf und Rumpf unter ``FunctionBody``."""
+        fn = self.catalog.objects[self.oid("[dbo].[fnKundeName]")]
+        self.assertTrue(fn.sql.startswith("CREATE FUNCTION"))
+        self.assertIn("RETURN (SELECT TOP 1 Name FROM dbo.Kunde", fn.sql)
+        self.assertEqual([p.name for p in fn.parameters], ["@Id"])
+        self.assertEqual(fn.returns, "nvarchar(80)")
+
 
 class KatalogTest(Fixture, unittest.TestCase):
     def test_beide_datenbanken_geladen(self) -> None:
@@ -410,6 +452,34 @@ class RenderTest(Fixture, unittest.TestCase):
                 encoding="utf-8")
             self.assertIn("../../TestDbs/prozeduren/dbo.procKundeSpeichern.html", page)
             self.assertIn("TestDbs.dbo.procKundeSpeichern", page)
+
+    def test_ohne_volltext_kein_quelltextindex(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "docs"
+            render.Renderer(self.catalog, self.graph, out).write()
+            self.assertFalse((out / "assets" / "quelltext.js").exists())
+            self.assertNotIn('id="src"',
+                             (out / "suche.html").read_text(encoding="utf-8"))
+
+    def test_volltext_schreibt_quelltextindex(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "docs"
+            render.Renderer(self.catalog, self.graph, out,
+                            fulltext=True).write()
+            self.assertIn('id="src"',
+                          (out / "suche.html").read_text(encoding="utf-8"))
+
+            index = json.loads(
+                (out / "assets" / "suchindex.js").read_text(encoding="utf-8")
+                .split("=", 1)[1].rstrip(";\n"))
+            source = json.loads(
+                (out / "assets" / "quelltext.js").read_text(encoding="utf-8")
+                .split("=", 1)[1].rstrip(";\n"))
+            # Beide Listen sind gleich lang und gleich sortiert; die Suchseite
+            # verknuepft sie ueber den Listenplatz.
+            self.assertEqual(len(index), len(source))
+            at = [row[0] for row in index].index("dbo.procKundeSpeichern")
+            self.assertIn("KundeId", source[at])
 
     def test_sonderzeichen_werden_maskiert(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

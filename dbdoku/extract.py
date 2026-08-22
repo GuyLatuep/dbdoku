@@ -8,12 +8,11 @@ import xml.etree.ElementTree as ET
 from .dacpac import (
     NS,
     DacpacReader,
-    entries,
+    annotation,
     flag,
     prop,
     rel_elements,
     rel_references,
-    relationship,
 )
 from .model import (
     Check,
@@ -184,6 +183,25 @@ def _target(el: ET.Element, *names: str) -> str | None:
     return None
 
 
+def source_of(el: ET.Element) -> tuple[str, str]:
+    """Kopftext und Rumpf eines Objekts als ``(header, body)``.
+
+    Prozeduren, Sichten und Trigger tragen ihren Rumpf direkt; bei Funktionen
+    steckt er eine Ebene tiefer in der ``FunctionBody``-Relationship. Der Kopf
+    (``CREATE FUNCTION … AS`` samt vorangehender Kommentare) steht in beiden
+    Faellen in der ``SysCommentsObjectAnnotation`` des rumpftragenden Elements,
+    nicht in einer Property.
+    """
+    impls = rel_elements(el, "FunctionBody")
+    src = impls[0] if impls else el
+    body = prop(src, "BodyScript") or prop(src, "QueryScript") or ""
+    ann = annotation(src, "SysCommentsObjectAnnotation")
+    header = prop(ann, "HeaderContents") if ann is not None else None
+    if header is None:  # aeltere Modelle schreiben den Kopf als Property
+        header = prop(src, "HeaderContents") or ""
+    return header, body
+
+
 class Extractor:
     def __init__(self) -> None:
         self.db = Database()
@@ -253,8 +271,7 @@ class Extractor:
     def _on_SqlView(self, el: ET.Element) -> None:
         obj = self._new(el, "view")
         obj.columns = [column_of(c) for c in rel_elements(el, "Columns")]
-        obj.body = prop(el, "QueryScript") or ""
-        obj.header = prop(el, "HeaderContents") or ""
+        obj.header, obj.body = source_of(el)
         obj.refs = parse_refs(el, "QueryDependencies", "BodyDependencies")
         for col in obj.columns:
             obj.refs.extend(col.refs)
@@ -268,8 +285,7 @@ class Extractor:
     def _routine(self, el: ET.Element, kind: str, subtype: str) -> None:
         obj = self._new(el, kind)
         obj.routine_type = subtype
-        obj.header = prop(el, "HeaderContents") or ""
-        obj.body = prop(el, "BodyScript") or ""
+        obj.header, obj.body = source_of(el)
         obj.refs = parse_refs(el, "BodyDependencies", "ExpressionDependencies",
                               "QueryDependencies", "DynamicObjects")
         obj.dynamic_sql = bool(_DYNAMIC_SQL.search(obj.body))
@@ -290,15 +306,18 @@ class Extractor:
                 obj.columns = [column_of(c) for c in rel_elements(el, "Columns")]
                 var = prop(el, "ReturnTableVariable")
                 obj.returns = f"TABLE {var}" if var else "TABLE"
-            if rel_elements(el, "FunctionBody") == [] and relationship(el, "Assembly") is not None:
+            impls = rel_elements(el, "FunctionBody")
+            if impls and impls[0].get("Type") == "SqlClrFunctionImplementation":
                 obj.clr = True
         if kind == "trigger":
             obj.trigger_on = _target(el, "Parent")
             obj.trigger_events = [label for key, label in _TRIGGER_EVENTS if flag(el, key)]
 
         # CLR-Routinen haben keinen T-SQL-Body, sondern eine Assembly-Bindung.
-        if not obj.body and (cls := prop(el, "ClassName")):
-            method = prop(el, "MethodName") or ""
+        impls = rel_elements(el, "FunctionBody")
+        binding = impls[0] if impls else el
+        if not obj.body and (cls := prop(binding, "ClassName")):
+            method = prop(binding, "MethodName") or ""
             obj.body = f"-- CLR: {cls}.{method}"
             obj.clr = True
 

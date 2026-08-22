@@ -101,6 +101,52 @@
       return out;
     };
 
+    /* ------------------------------------------------- Volltext (optional) */
+
+    // Der Quelltextindex ist gross und wird deshalb erst nachgeladen, wenn
+    // die Volltextsuche eingeschaltet wird.
+    var srcBox = document.getElementById("src");
+    var srcState = "off";   // off | laden | bereit | fehlt
+
+    var foldSource = function () {
+      var src = window.DBDOKU_SOURCE || [];
+      index.forEach(function (row, i) {
+        row.sql = src[i] || "";
+        row.sqlhay = row.sql ? fold(row.sql) : "";
+      });
+    };
+
+    var loadSource = function (done) {
+      if (srcState === "bereit" || srcState === "fehlt") { return done(); }
+      srcState = "laden";
+      results.innerHTML = '<p class="note">Quelltextindex wird geladen …</p>';
+      var script = document.createElement("script");
+      script.src = "assets/quelltext.js";
+      script.onload = function () {
+        foldSource();
+        srcState = "bereit";
+        done();
+      };
+      script.onerror = function () {
+        srcState = "fehlt";
+        done();
+      };
+      document.head.appendChild(script);
+    };
+
+    // Ausschnitt um den ersten Treffer, damit die Fundstelle sichtbar wird.
+    var snippet = function (row, terms) {
+      var at = -1;
+      terms.forEach(function (t) {
+        var p = row.sqlhay.indexOf(t);
+        if (p !== -1 && (at === -1 || p < at)) { at = p; }
+      });
+      if (at === -1) { return ""; }
+      var from = Math.max(0, at - 60);
+      var text = row.sql.slice(from, at + 140).replace(/\s+/g, " ");
+      return (from > 0 ? "… " : "") + text + " …";
+    };
+
     function run(value) {
       var terms = fold(value).split(/\s+/).filter(Boolean);
       if (!terms.length || value.trim().length < 2) {
@@ -108,28 +154,46 @@
         return;
       }
       if (index === null) { return; }
-      var hits = index.filter(function (row) {
-        return terms.every(function (t) { return row.hay.indexOf(t) !== -1; });
+      var withSource = !!(srcBox && srcBox.checked) && srcState === "bereit";
+      var hits = [];
+      index.forEach(function (row) {
+        var meta = terms.every(function (t) { return row.hay.indexOf(t) !== -1; });
+        var sql = !meta && withSource && row.sqlhay &&
+          terms.every(function (t) {
+            return row.hay.indexOf(t) !== -1 || row.sqlhay.indexOf(t) !== -1;
+          });
+        if (meta || sql) {
+          row.onlySql = !meta;
+          hits.push(row);
+        }
       });
-      // Namenstreffer zuerst, kuerzere Namen vor laengeren.
+      // Namenstreffer zuerst, kuerzere Namen vor laengeren; reine
+      // Quelltexttreffer ans Ende.
       var first = terms[0];
       hits.sort(function (a, b) {
         var an = fold(a.name).indexOf(first), bn = fold(b.name).indexOf(first);
         var ar = an === 0 ? 0 : (an > 0 ? 1 : 2);
         var br = bn === 0 ? 0 : (bn > 0 ? 1 : 2);
-        return ar - br || a.name.length - b.name.length ||
-               a.name.localeCompare(b.name, "de");
+        return (a.onlySql ? 1 : 0) - (b.onlySql ? 1 : 0) || ar - br ||
+               a.name.length - b.name.length || a.name.localeCompare(b.name, "de");
       });
 
       var shown = hits.slice(0, 300);
-      var html = '<p class="note">' + hits.length + " Treffer" +
-        (hits.length > shown.length ? ", die ersten " + shown.length + " werden gezeigt" : "") +
-        "</p><ul>";
+      var note = hits.length + " Treffer" +
+        (hits.length > shown.length ? ", die ersten " + shown.length + " werden gezeigt" : "");
+      if (srcBox && srcBox.checked && srcState === "fehlt") {
+        note += " – der Quelltextindex (assets/quelltext.js) fehlt";
+      }
+      var html = '<p class="note">' + note + "</p><ul>";
       shown.forEach(function (row) {
+        var url = row.onlySql ? row.url + "#quelltext" : row.url;
         html += '<li><span class="dbtag">' + escapeHtml(row.db) + "</span>" +
-          '<a href="' + row.url + '">' + mark(row.name, terms) + "</a>" +
+          '<a href="' + url + '">' + mark(row.name, terms) + "</a>" +
           '<span class="kind">' + escapeHtml(row.kind) + "</span>" +
           (row.desc ? '<span class="desc">' + mark(row.desc, terms) + "</span>" : "") +
+          (row.onlySql
+            ? '<span class="hit"><code>' + mark(snippet(row, terms), terms) + "</code></span>"
+            : "") +
           "</li>";
       });
       results.innerHTML = html + "</ul>";
@@ -141,5 +205,15 @@
       var value = box.value;
       timer = window.setTimeout(function () { run(value); }, 90);
     });
+
+    if (srcBox) {
+      srcBox.addEventListener("change", function () {
+        if (srcBox.checked) {
+          loadSource(function () { run(box.value); });
+        } else {
+          run(box.value);
+        }
+      });
+    }
   }
 })();

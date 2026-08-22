@@ -31,11 +31,12 @@ def _slug(text: str) -> str:
 
 class Renderer:
     def __init__(self, catalog: Catalog, graph: Graph, outdir: Path,
-                 title: str = "Datenbankkatalog") -> None:
+                 title: str = "Datenbankkatalog", fulltext: bool = False) -> None:
         self.catalog = catalog
         self.graph = graph
         self.out = outdir
         self.title = title
+        self.fulltext = fulltext             # Quelltext mit in die Suche aufnehmen
         self.paths: dict[str, str] = {}      # Objekt-Id -> Pfad ab Wurzel
         self.db_paths: dict[str, str] = {}   # Datenbankschluessel -> Pfad ab Wurzel
         self.home = ""                       # Datenbank der gerade erzeugten Seite
@@ -811,16 +812,27 @@ class Renderer:
 
     def render_search(self) -> str:
         self.home = ""
-        body = """
+        if self.fulltext:
+            lead = ("Sucht über alle Datenbanken hinweg in Objektnamen und "
+                    "Beschreibungen. Auf Wunsch wird auch der Quelltext der "
+                    "Routinen und Sichten durchsucht; der dafür nötige Index "
+                    "wird erst beim Einschalten geladen.")
+            option = ('<label class="opt"><input type="checkbox" id="src">'
+                      ' Quelltext durchsuchen</label>\n')
+        else:
+            lead = ("Sucht über alle Datenbanken hinweg in Objektnamen und "
+                    "Beschreibungen. Der Quelltext der Routinen ist nicht "
+                    "indiziert – dafür sind die Abschnitte „Verwendet von“ und "
+                    "„Ruft auf“ auf den Objektseiten gedacht.")
+            option = ""
+        body = f"""
 <header class="pagehead">
   <h1>Suche</h1>
-  <p class="lead">Sucht über alle Datenbanken hinweg in Objektnamen und
-     Beschreibungen. Der Quelltext der Routinen ist nicht indiziert – dafür sind
-     die Abschnitte „Verwendet von“ und „Ruft auf“ auf den Objektseiten gedacht.</p>
+  <p class="lead">{lead}</p>
 </header>
 <input type="search" id="q" class="filter big" placeholder="Objekt oder Beschreibung …"
        autofocus aria-label="Suchbegriff">
-<div id="results" class="results"><p class="note">Mindestens zwei Zeichen eingeben.</p></div>
+{option}<div id="results" class="results"><p class="note">Mindestens zwei Zeichen eingeben.</p></div>
 """
         return self.page("Suche", body, 0, "suche", ("assets/suchindex.js",))
 
@@ -840,6 +852,21 @@ class Renderer:
         data = json.dumps(entries, ensure_ascii=False, separators=(",", ":"))
         return f"window.DBDOKU_INDEX={data};\n"
 
+    def source_index(self) -> str:
+        """Der Quelltext aller Objekte, in der Reihenfolge von :meth:`search_index`.
+
+        Eigene Datei, weil sie ein Vielfaches des Namensindex wiegt. Die
+        Suchseite laedt sie erst nach, wenn die Volltextsuche eingeschaltet
+        wird — wieder als ``<script>``, damit ``file://`` funktioniert.
+        """
+        bodies = []
+        for db in self.catalog.databases:
+            for kind in NAV:
+                for obj in db.of_kind(kind):
+                    bodies.append(obj.sql)
+        data = json.dumps(bodies, ensure_ascii=False, separators=(",", ":"))
+        return f"window.DBDOKU_SOURCE={data};\n"
+
     # -- alles schreiben ---------------------------------------------------
 
     def write(self) -> int:
@@ -850,6 +877,9 @@ class Renderer:
             shutil.copyfile(ASSETS / name, out / "assets" / name)
         (out / "assets" / "suchindex.js").write_text(self.search_index(),
                                                      encoding="utf-8")
+        if self.fulltext:
+            (out / "assets" / "quelltext.js").write_text(self.source_index(),
+                                                         encoding="utf-8")
 
         written = 2
         (out / "index.html").write_text(self.render_index(), encoding="utf-8")
