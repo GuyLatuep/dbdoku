@@ -39,7 +39,8 @@ class _Sanitized(io.RawIOBase):
 
     def __init__(self, raw: io.BufferedIOBase) -> None:
         self._raw = raw
-        self._buf = b""
+        self._buf = b""      # roh gelesen, noch nicht bereinigt
+        self._clean = b""    # bereinigt und bereit zur Ausgabe
         self._eof = False
         self.replaced = 0
 
@@ -48,23 +49,30 @@ class _Sanitized(io.RawIOBase):
 
     def readinto(self, target) -> int:  # type: ignore[override]
         want = len(target)
-        while not self._eof and len(self._buf) < want + _MAX_REF:
+        # Bereinigt wird der Puffer, nicht die Ausgabe: sonst haenge die Frage,
+        # ob eine Referenz zerrissen wurde, an der Groesse von ``target`` — und
+        # bei einem Puffer unter _MAX_REF Bytes bliebe nichts uebrig, was einem
+        # Leser als Dateiende erschiene.
+        while len(self._clean) < want and not self._eof:
             chunk = self._raw.read(1 << 20)
-            if not chunk:
+            if chunk:
+                self._buf += chunk
+            else:
                 self._eof = True
-                break
-            self._buf += chunk
 
-        out, self._buf = self._buf[:want], self._buf[want:]
-        if not self._eof:
-            # Eine angefangene Entity nicht ueber die Chunk-Grenze zerreissen.
-            cut = out.rfind(b"&")
-            if cut != -1 and cut > len(out) - _MAX_REF:
-                self._buf = out[cut:] + self._buf
-                out = out[:cut]
+            # Bis zum letzten '&' im Endstueck bereinigen; was dahinter steht,
+            # koennte eine angefangene Referenz sein und wartet auf Nachschub.
+            safe = len(self._buf)
+            if not self._eof:
+                cut = self._buf.rfind(b"&", max(0, safe - _MAX_REF))
+                if cut != -1:
+                    safe = cut
+            head, n = _BAD_REF.subn(b"?", self._buf[:safe])
+            self.replaced += n
+            self._clean += head
+            self._buf = self._buf[safe:]
 
-        out, n = _BAD_REF.subn(b"?", out)
-        self.replaced += n
+        out, self._clean = self._clean[:want], self._clean[want:]
         target[: len(out)] = out
         return len(out)
 

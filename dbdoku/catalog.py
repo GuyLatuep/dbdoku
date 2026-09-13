@@ -45,6 +45,9 @@ def _globalize(catalog: Catalog) -> None:
         for oid, obj in db.objects.items():
             obj.id = gid(db.key, oid)
             obj.db = db.name
+            # Die Tabelle eines Triggers liegt immer in derselben Datenbank.
+            if obj.trigger_on:
+                obj.trigger_on = gid(db.key, obj.trigger_on)
             renamed[obj.id] = obj
         db.objects = renamed
 

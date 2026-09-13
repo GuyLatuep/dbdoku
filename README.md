@@ -168,12 +168,17 @@ zugeordnet.
 python3 -m unittest discover -s tests
 ```
 
-Die Tests bauen zwei synthetische `.dacpac` mit einer gleichnamigen Tabelle und
-einem Querverweis zwischen ihnen. Geprüft werden Extraktion, Zusammenführung,
-Zugriffsanalyse, Aufrufgraph und Ausgabe – einschließlich der ungültigen
-Zeichenreferenz, der Auflösung über Datenbankgrenzen und des Falls, dass die
-Nachbardatenbank *nicht* mitgeladen ist (dann darf nichts fälschlich der lokalen
-Tabelle zugeschrieben werden).
+Die Tests bauen synthetische `.dacpac` und arbeiten ausschließlich darauf – es
+wird keine echte Datenbank und kein SQL Server gebraucht.
+
+| Datei | Was geprüft wird |
+|---|---|
+| `test_dbdoku.py` | Der Normalfall: zwei Datenbanken mit einer gleichnamigen Tabelle und einem Querverweis. Extraktion, Zusammenführung, Zugriffsanalyse, Aufrufgraph, Ausgabe – einschließlich der ungültigen Zeichenreferenz, der Auflösung über Datenbankgrenzen und des Falls, dass die Nachbardatenbank *nicht* mitgeladen ist (dann darf nichts fälschlich der lokalen Tabelle zugeschrieben werden). |
+| `test_extract_extended.py` | Die selteneren Modellelemente: Sichten, Trigger, Tabellenfunktionen, CLR-Bindungen, Indizes, Check-Constraints, berechnete Spalten – und die Typformen, die DacFx unterschiedlich serialisiert. |
+| `test_crud.py` | Quelltext säubern (Kommentare, Literale, verschachtelte Blöcke), Namen auflösen und die Schreibzugriffe finden, `MERGE` mit seinen Zusatzklauseln eingeschlossen. |
+| `test_render_extended.py` | Die Ausgabe für all das, dazu gleichnamige Ordner und Dateien, eine leere Datenbank und ein Fremdschlüssel in eine Nachbardatenbank – einmal mitgeladen, einmal nicht. |
+| `test_cli.py` | `build`, `check_links` und `main` samt Rückgabewerten und Fehlermeldungen. |
+| `test_bausteine.py` | Byte-Strom, Diagramme, Graph, Namensbehandlung und Einfärbung einzeln. |
 
 ### Abdeckung
 
