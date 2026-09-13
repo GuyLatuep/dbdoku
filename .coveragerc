@@ -1,0 +1,26 @@
+# Coverage-Konfiguration, gemeinsam genutzt von einem lokalen Lauf und dem
+# CI-Job – damit die Zahl im README-Badge dieselbe ist, die auf dem eigenen
+# Rechner herauskommt.
+#
+# coverage.py ist die einzige Entwicklungsabhängigkeit des Projekts. Was dbdoku
+# zur Laufzeit *ausführt*, kommt weiterhin ausschließlich aus der
+# Standardbibliothek.
+
+[run]
+source = dbdoku
+# Zweigabdeckung, nicht nur Zeilen: ein `if`, dessen Else-Zweig nie genommen
+# wird, ist ungetestet – auch wenn jede Zeile einmal lief.
+branch = true
+
+[report]
+# Zeilen, die für den Leser da sind oder für einen Pfad, den die Tests bewusst
+# nicht nehmen.
+exclude_also =
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    raise NotImplementedError
+show_missing = true
+precision = 1
+
+[xml]
+output = coverage.xml

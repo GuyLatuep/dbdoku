@@ -4,3 +4,6 @@ docs/
 dacpacs/
 .DS_Store
 .claude/
+.coverage
+coverage.xml
+htmlcov/

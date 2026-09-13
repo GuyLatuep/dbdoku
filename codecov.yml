@@ -1,0 +1,26 @@
+# Abdeckungsrichtlinie. `ci.yml` lädt einen Bericht hoch – coverage.py über die
+# Unittest-Suite –, und dessen Projektzahl zeigt das README-Badge.
+
+coverage:
+  status:
+    # Eine Ratsche, keine feste Hürde: `auto` vergleicht mit dem Basis-Commit,
+    # ein Pull Request scheitert also nur, wenn er die Abdeckung *senkt*. Das
+    # hält die Zahl ehrlich, ohne dass jemand ein hartes Ziel nachziehen muss –
+    # und ohne dass unbeteiligte Arbeit an einer Schwelle hängenbleibt, die sie
+    # nie berührt hat.
+    project:
+      default:
+        target: auto
+        # Rundungsrauschen und ein paar Zeilen, die zwischen Dateien wandern,
+        # sollen keinen Build rot färben; ein echter Rückschritt ist größer.
+        threshold: 0.5%
+    # Neuer Code wird an einer echten Hürde gemessen. Die Projektratsche allein
+    # ließe ein ungetestetes Feature durch, solange es klein genug ist, um sich
+    # in der Rundung zu verstecken – genau so verfällt Abdeckung.
+    patch:
+      default:
+        target: 70%
+
+comment:
+  layout: "reach, diff, files"
+  require_changes: false

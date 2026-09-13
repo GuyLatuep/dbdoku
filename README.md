@@ -6,8 +6,10 @@
 
 Mehrere Datenbanken auf einmal · Verweise über Datenbankgrenzen aufgelöst · reine Standardbibliothek
 
+[![CI](https://github.com/GuyLatuep/dbdoku/actions/workflows/ci.yml/badge.svg)](https://github.com/GuyLatuep/dbdoku/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/GuyLatuep/dbdoku/branch/main/graph/badge.svg)](https://codecov.io/gh/GuyLatuep/dbdoku)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Abhängigkeiten](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-keine-34C759)](#-schnellstart)
+[![Laufzeit-Abhängigkeiten](https://img.shields.io/badge/Laufzeit--Abh%C3%A4ngigkeiten-keine-34C759)](#-schnellstart)
 [![SQL Server](https://img.shields.io/badge/SQL_Server-.dacpac-CC2927?logo=microsoftsqlserver&logoColor=white)](https://learn.microsoft.com/sql/relational-databases/data-tier-applications/data-tier-applications)
 [![Version](https://img.shields.io/badge/Version-1.0.0-007AFF)](https://github.com/GuyLatuep/dbdoku/releases)
 [![Lizenz](https://img.shields.io/badge/Lizenz-MIT-8E8E93)](LICENSE)
@@ -172,6 +174,26 @@ Zugriffsanalyse, Aufrufgraph und Ausgabe – einschließlich der ungültigen
 Zeichenreferenz, der Auflösung über Datenbankgrenzen und des Falls, dass die
 Nachbardatenbank *nicht* mitgeladen ist (dann darf nichts fälschlich der lokalen
 Tabelle zugeschrieben werden).
+
+### Abdeckung
+
+`coverage.py` ist die einzige Entwicklungsabhängigkeit – was dbdoku ausführt,
+kommt weiterhin allein aus der Standardbibliothek.
+
+```sh
+pip install coverage
+python3 -m coverage run -m unittest discover -s tests
+python3 -m coverage report
+```
+
+Die Einstellungen stehen in [`.coveragerc`](.coveragerc) und gelten für den
+lokalen Lauf wie für die CI, damit beide dieselbe Zahl ergeben. Gemessen wird
+Zweigabdeckung, nicht nur Zeilen.
+
+CI führt die Suite auf Python 3.9 und 3.13 aus und lädt den Bericht zu Codecov –
+das ist die Zahl im Badge oben. Die Richtlinie in [`codecov.yml`](codecov.yml)
+ist eine Ratsche: ein Pull Request scheitert, wenn er die Abdeckung des Projekts
+senkt, und neuer Code wird an 70 % gemessen.
 
 ## 🏗️ Aufbau des Projekts
 
