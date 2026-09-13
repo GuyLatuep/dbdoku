@@ -1,4 +1,22 @@
+<div align="center">
+
 # dbdoku
+
+**Aus `.dacpac` wird eine vollständig verlinkte HTML-Dokumentation deiner SQL-Server-Landschaft.**
+
+Mehrere Datenbanken auf einmal · Verweise über Datenbankgrenzen aufgelöst · reine Standardbibliothek
+
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Abhängigkeiten](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-keine-34C759)](#-schnellstart)
+[![SQL Server](https://img.shields.io/badge/SQL_Server-.dacpac-CC2927?logo=microsoftsqlserver&logoColor=white)](https://learn.microsoft.com/sql/relational-databases/data-tier-applications/data-tier-applications)
+[![Version](https://img.shields.io/badge/Version-1.0.0-007AFF)](https://github.com/GuyLatuep/dbdoku/releases)
+[![Lizenz](https://img.shields.io/badge/Lizenz-MIT-8E8E93)](LICENSE)
+
+[Was es kann](#-was-es-kann) · [Schnellstart](#-schnellstart) · [Optionen](#-optionen) · [Inhalt der Ausgabe](#-was-die-dokumentation-enthält) · [Datenherkunft](#-woher-die-angaben-stammen) · [Aufbau](#-aufbau-des-projekts)
+
+</div>
+
+---
 
 Erzeugt aus einer oder mehreren `.dacpac` eine vollständig verlinkte
 HTML-Dokumentation: alle Tabellen mit ihren Beziehungen, alle Prozeduren,
@@ -11,7 +29,22 @@ Reines Python 3 aus der Standardbibliothek – keine Installation, kein
 `pip install`, kein Webserver. Die Ausgabe funktioniert per Doppelklick auf
 `index.html`.
 
-## Verwendung
+## ✨ Was es kann
+
+| | |
+| --- | --- |
+| 🔗 **Über Datenbankgrenzen hinweg** | `[Fremd-DB].dbo.Kunde` landet auf der Tabelle *jener* Datenbank – nie auf der gleichnamigen lokalen. Fehlt die Nachbardatenbank, bleibt der Verweis unverlinkt und wird auf der Katalogseite ausgewiesen. |
+| 🧭 **Exakte Abhängigkeiten** | Was eine Routine berührt, kommt aus den `BodyDependencies` des DacFx-Modells – geraten wird nichts. |
+| 🔤 **Zugriffsart aus dem T-SQL** | `S I U D` an jedem Bezug: **S**elect liest, **I**nsert fügt ein, **U**pdate ändert, **D**elete löscht – ermittelt über Aliasauflösung im bereinigten Quelltext. |
+| 🗺️ **Diagramme inline** | Beziehungsdiagramm der direkten Nachbarn je Tabelle, Abhängigkeitsdiagramm je Datenbank – als SVG in der Seite, ohne Bilddateien. |
+| 🔎 **Suche über alles** | Objektnamen und Beschreibungen aller Datenbanken; mit `--volltext` zusätzlich das T-SQL selbst, mit Fundstelle im Ausschnitt. |
+| 📇 **Sortierbare Listen** | Je Objektart und Datenbank, filterbar direkt in der Seite. |
+| 🎨 **Lesbare Quelltexte** | Vollständiges T-SQL mit Zeilennummern und Einfärbung, Hell- und Dunkelmodus. |
+| 📦 **Keine Laufzeitumgebung** | Kein Webserver, kein Build, keine Abhängigkeit – ein Ordner mit HTML, der sich kopieren und weitergeben lässt. |
+| 🩺 **Selbstprüfung** | `--check-links` geht die erzeugte Dokumentation durch und meldet tote Verweise. |
+| ⚡ **Auf Größe ausgelegt** | `model.xml` wird mit `iterparse` gestreamt und jedes Objekt nach der Verarbeitung freigegeben – auch bei einigen zehn MB je Datenbank. |
+
+## 🚀 Schnellstart
 
 Ein ganzer Ordner (der Normalfall bei zusammengehörenden Datenbanken):
 
@@ -26,7 +59,7 @@ Einzelne Dateien gehen ebenso:
 python3 -m dbdoku datenbank.dacpac fremd-db.dacpac -o docs/
 ```
 
-Optionen:
+## ⚙️ Optionen
 
 | Option | Wirkung |
 |---|---|
@@ -37,18 +70,18 @@ Optionen:
 | `--check-links` | erzeugte Dokumentation auf tote Verweise prüfen: `python3 -m dbdoku --check-links docs/` |
 | `-q`, `--quiet` | keine Statusmeldungen |
 
-## Aufbau der Ausgabe
+## 📂 Aufbau der Ausgabe
 
 ```
 docs/
-  index.html              Katalogübersicht: alle Datenbanken, Abhängigkeiten
-  suche.html              Suche über alle Datenbanken
-  <Datenbank>/
-    index.html            Eckdaten, Abhängigkeitsdiagramm, meistgenutzte Tabellen
-    tabellen/  sichten/  prozeduren/  funktionen/  trigger/  typen/
+├── index.html              Katalogübersicht: alle Datenbanken, Abhängigkeiten
+├── suche.html              Suche über alle Datenbanken
+└── <Datenbank>/
+    ├── index.html          Eckdaten, Abhängigkeitsdiagramm, meistgenutzte Tabellen
+    └── tabellen/  sichten/  prozeduren/  funktionen/  trigger/  typen/
 ```
 
-## Was die Dokumentation enthält
+## 📖 Was die Dokumentation enthält
 
 **Tabellenseite** – Spalten mit Datentyp, NULL-Barkeit, Standardwert,
 Identity und Beschreibung; Primärschlüssel, Unique-Constraints und Indizes;
@@ -78,7 +111,7 @@ auch Treffer im T-SQL, mit Fundstelle im Ausschnitt.
 Die Zugriffsart wird als `S I U D` angezeigt: **S**elect (liest),
 **I**nsert (fügt ein), **U**pdate (ändert), **D**elete (löscht).
 
-## Woher die Angaben stammen
+## 🔍 Woher die Angaben stammen
 
 Die `.dacpac` enthält in `model.xml` das von DacFx aufgelöste Modell. Welche
 Objekte eine Routine berührt, steht dort explizit (`BodyDependencies`) und ist
@@ -91,7 +124,7 @@ Stringliterale werden entfernt, dann werden `INSERT` / `UPDATE` / `DELETE` /
 aufgelöst. Alles, was in den Abhängigkeiten steht und nicht als Schreibzugriff
 erkannt wurde, gilt als Lesezugriff.
 
-### Grenzen
+### ⚠️ Grenzen
 
 * **Dynamisches SQL** (`EXEC(@sql)`, `sp_executesql`) ist grundsätzlich nicht
   analysierbar – die betroffenen Objekte sind in der Ausgabe mit einem Hinweis
@@ -104,7 +137,8 @@ erkannt wurde, gilt als Lesezugriff.
 * CLR-Routinen haben keinen T-SQL-Rumpf; statt des Quelltextes wird die
   gebundene Klasse und Methode angezeigt.
 
-## Zwei Eigenheiten des Formats
+<details>
+<summary><strong>🧩 Zwei Eigenheiten des .dacpac-Formats</strong></summary>
 
 Beides ist behandelt, aber gut zu wissen, falls die Datei anderweitig
 verarbeitet werden soll:
@@ -124,7 +158,9 @@ Datenbank wie die `.dacpac` namens `FREMD-DB`; `master.dacpac` und
 `msdb.dacpac` tragen überhaupt keinen Namen und werden über den Dateinamen
 zugeordnet.
 
-## Tests
+</details>
+
+## 🧪 Tests
 
 ```sh
 python3 -m unittest discover -s tests
@@ -137,21 +173,22 @@ Zeichenreferenz, der Auflösung über Datenbankgrenzen und des Falls, dass die
 Nachbardatenbank *nicht* mitgeladen ist (dann darf nichts fälschlich der lokalen
 Tabelle zugeschrieben werden).
 
-## Aufbau
+## 🏗️ Aufbau des Projekts
 
-| Datei | Aufgabe |
-|---|---|
-| `dbdoku/dacpac.py` | ZIP-Zugriff, Sanitizing-Stream, `iterparse`-Gerüst |
-| `dbdoku/extract.py` | `model.xml` → Objektmodell einer Datenbank |
-| `dbdoku/catalog.py` | mehrere .dacpac zusammenführen, Querverweise auflösen |
-| `dbdoku/model.py` | Dataclasses und Namensbehandlung |
-| `dbdoku/crud.py` | Zugriffsart aus dem T-SQL |
-| `dbdoku/graph.py` | Rückwärtsindizes, Aufrufgraph |
-| `dbdoku/erd.py` | Beziehungsdiagramme als Inline-SVG |
-| `dbdoku/highlight.py` | T-SQL-Einfärbung |
-| `dbdoku/render.py` | HTML-Erzeugung |
-| `dbdoku/assets/` | Stylesheet und Skript der erzeugten Seiten |
+```
+dbdoku/
+├── dacpac.py       ZIP-Zugriff, Sanitizing-Stream, iterparse-Gerüst
+├── extract.py      model.xml → Objektmodell einer Datenbank
+├── catalog.py      mehrere .dacpac zusammenführen, Querverweise auflösen
+├── model.py        Dataclasses und Namensbehandlung
+├── crud.py         Zugriffsart aus dem T-SQL
+├── graph.py        Rückwärtsindizes, Aufrufgraph
+├── erd.py          Beziehungsdiagramme als Inline-SVG
+├── highlight.py    T-SQL-Einfärbung
+├── render.py       HTML-Erzeugung
+└── assets/         Stylesheet und Skript der erzeugten Seiten
+```
 
-## Lizenz
+## 📄 Lizenz
 
 MIT – siehe [LICENSE](LICENSE).
