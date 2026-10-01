@@ -2,6 +2,7 @@
 
     python3 -m dbdoku dacpacs/ -o docs/
     python3 -m dbdoku eine.dacpac zweite.dacpac -o docs/
+    python3 -m dbdoku dacpacs/ -o docs/ --llm      # zusätzlich docs/llm/ für KI
     python3 -m dbdoku --check-links docs/
 """
 
@@ -16,13 +17,14 @@ import time
 from pathlib import Path
 from urllib.parse import unquote
 
-from . import __version__, catalog as catalog_mod, crud, graph, render
+from . import __version__, catalog as catalog_mod, crud, graph, llm, render
 from .dacpac import DacpacError
 from .model import KINDS
 
 
 def build(sources: list[Path], out: Path, title: str, write_json: bool,
-          quiet: bool, fulltext: bool = False) -> int:
+          quiet: bool, fulltext: bool = False, html: bool = True,
+          for_llm: bool = False) -> int:
     def say(msg: str) -> None:
         if not quiet:
             print(msg, file=sys.stderr)
@@ -63,18 +65,24 @@ def build(sources: list[Path], out: Path, title: str, write_json: bool,
         f"{cross} datenbankübergreifende Verweise")
 
     say(f"Schreibe nach {out} …")
-    renderer = render.Renderer(cat, g, out, title, fulltext)
-    written = renderer.write()
-    if fulltext:
-        size = (out / "assets" / "quelltext.js").stat().st_size
-        say(f"  Quelltextindex: {size / 1e6:.1f} MB (wird nur auf Wunsch geladen)")
+    written = 0
+    if html:
+        renderer = render.Renderer(cat, g, out, title, fulltext)
+        written = renderer.write()
+        if fulltext:
+            size = (out / "assets" / "quelltext.js").stat().st_size
+            say(f"  Quelltextindex: {size / 1e6:.1f} MB (wird nur auf Wunsch geladen)")
+    if for_llm:
+        written += llm.LlmWriter(cat, g, out / "llm", title).write()
     if write_json:
+        out.mkdir(parents=True, exist_ok=True)
         (out / "model.json").write_text(
-            json.dumps(_as_dict(cat), ensure_ascii=False, indent=1), encoding="utf-8")
+            json.dumps(_as_dict(cat), ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8")
 
-    say(f"Fertig: {written} Seiten in {time.time() - start:.1f} s.")
+    say(f"Fertig: {written} Dateien in {time.time() - start:.1f} s.")
     if not quiet:
-        print(out / "index.html")
+        print(out / "index.html" if html else out / "llm" / "README.md")
     return 0
 
 
@@ -94,18 +102,25 @@ def _as_dict(value) -> dict:
 
 
 _HREF = re.compile(r'(?:href|xlink:href)="([^"]+)"')
+_MD_LINK = re.compile(r"\]\(([^)\s]+)\)")
+# Quelltextblöcke enthalten T-SQL wie ``[a](@b)``, das kein Verweis ist.
+_MD_FENCE = re.compile(r"^(`{3,}).*?^\1$", re.M | re.S)
 
 
 def check_links(root: Path, quiet: bool) -> int:
-    pages = sorted(root.rglob("*.html"))
+    pages = sorted(root.rglob("*.html")) + sorted(root.rglob("*.md"))
     if not pages:
-        print(f"Keine HTML-Dateien unter {root}.", file=sys.stderr)
+        print(f"Keine HTML-Dateien oder Markdown-Dateien unter {root}.", file=sys.stderr)
         return 2
     broken: list[tuple[Path, str]] = []
     total = 0
     for page in pages:
         text = page.read_text(encoding="utf-8")
-        for raw in _HREF.findall(text):
+        if page.suffix == ".md":
+            pattern, text = _MD_LINK, _MD_FENCE.sub("", text)
+        else:
+            pattern = _HREF
+        for raw in pattern.findall(text):
             if raw.startswith(("#", "http:", "https:", "mailto:", "data:")):
                 continue
             total += 1
@@ -142,7 +157,14 @@ def main(argv: list[str] | None = None) -> int:
                              "machen (eigener, großer Index, den die Suchseite "
                              "erst auf Wunsch nachlädt)")
     parser.add_argument("--no-json", action="store_true",
-                        help="model.json nicht mitschreiben")
+                        help="model.json nicht mitschreiben (vollständiger Datenabzug "
+                             "für Skripte; als Kontext für KI ist --llm gedacht)")
+    parser.add_argument("--llm", action="store_true",
+                        help="zusätzlich llm/ schreiben: kompaktes Markdown je Objekt "
+                             "plus schema.sql und relations.md je Datenbank, als "
+                             "Kontext für KI-Assistenten wie Claude")
+    parser.add_argument("--nur-llm", action="store_true",
+                        help="nur llm/ schreiben, keine HTML-Seiten")
     parser.add_argument("--check-links", action="store_true",
                         help="erzeugte Dokumentation auf tote Verweise prüfen")
     parser.add_argument("-q", "--quiet", action="store_true",
@@ -153,7 +175,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.check_links:
         return check_links(args.quelle[0], args.quiet)
     return build(args.quelle, args.out, args.titel, not args.no_json, args.quiet,
-                 args.volltext)
+                 args.volltext, html=not args.nur_llm,
+                 for_llm=args.llm or args.nur_llm)
 
 
 if __name__ == "__main__":
