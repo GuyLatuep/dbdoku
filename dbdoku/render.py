@@ -8,7 +8,7 @@ import re
 import shutil
 from pathlib import Path
 
-from . import erd
+from . import ddl, erd
 from .graph import Graph
 from .highlight import highlight
 from .model import ACCESS_LABEL, KINDS, Catalog, Database, DbObject
@@ -29,6 +29,40 @@ def _slug(text: str) -> str:
     return _UNSAFE.sub("_", text) or "x"
 
 
+def assign_paths(catalog: Catalog, subdirs: dict[str, str],
+                 ext: str) -> tuple[dict[str, str], dict[str, str]]:
+    """Kollisionsfreie Pfade: Ordner je Datenbank und Datei je Objekt.
+
+    ``subdirs`` bildet die Objektart auf ihren Unterordner ab. Dateisysteme
+    unter Windows und macOS sind nicht gross-/kleinschreibungsempfindlich,
+    daher wird ohne Rücksicht darauf verglichen.
+    """
+    folders: dict[str, str] = {}   # Datenbankschluessel -> Ordner
+    paths: dict[str, str] = {}     # Objekt-Id -> Pfad ab Wurzel
+    used: set[str] = set()
+    for db in catalog.databases:
+        folder = _slug(db.name)
+        n = 1
+        while folder.lower() in used:
+            n += 1
+            folder = f"{_slug(db.name)}~{n}"
+        used.add(folder.lower())
+        folders[db.key] = folder
+
+        taken: set[str] = set()
+        for kind in NAV:
+            sub = subdirs[kind]
+            for obj in db.of_kind(kind):
+                slug = _slug(obj.display)
+                candidate, k = f"{sub}/{slug}{ext}", 1
+                while candidate.lower() in taken:
+                    k += 1
+                    candidate = f"{sub}/{slug}~{k}{ext}"
+                taken.add(candidate.lower())
+                paths[obj.id] = f"{folder}/{candidate}"
+    return folders, paths
+
+
 class Renderer:
     def __init__(self, catalog: Catalog, graph: Graph, outdir: Path,
                  title: str = "Datenbankkatalog", fulltext: bool = False) -> None:
@@ -45,27 +79,9 @@ class Renderer:
     # -- Dateinamen und Verlinkung ----------------------------------------
 
     def _assign_paths(self) -> None:
-        used: set[str] = set()
-        for db in self.catalog.databases:
-            folder = _slug(db.name)
-            n = 1
-            while folder.lower() in used:
-                n += 1
-                folder = f"{_slug(db.name)}~{n}"
-            used.add(folder.lower())
-            self.db_paths[db.key] = f"{folder}/index.html"
-
-            taken: set[str] = set()
-            for kind in NAV:
-                sub = KINDS[kind][2]
-                for obj in db.of_kind(kind):
-                    slug = _slug(obj.display)
-                    candidate, k = f"{sub}/{slug}.html", 1
-                    while candidate.lower() in taken:
-                        k += 1
-                        candidate = f"{sub}/{slug}~{k}.html"
-                    taken.add(candidate.lower())
-                    self.paths[obj.id] = f"{folder}/{candidate}"
+        folders, self.paths = assign_paths(
+            self.catalog, {k: KINDS[k][2] for k in NAV}, ".html")
+        self.db_paths = {key: f"{folder}/index.html" for key, folder in folders.items()}
 
     def url(self, target: str, depth: int) -> str | None:
         path = self.paths.get(target)
@@ -587,54 +603,7 @@ class Renderer:
         )
 
     def _ddl(self, obj: DbObject) -> str:
-        """``CREATE TABLE`` aus dem Modell rekonstruieren."""
-        lines = [f"CREATE TABLE {obj.display} ("]
-        parts = []
-        for col in obj.columns:
-            piece = f"    [{col.name}] {col.type or ''}".rstrip()
-            if col.collation:
-                piece += f" COLLATE {col.collation}"
-            if col.identity:
-                piece += f" IDENTITY({col.identity})"
-            if col.default:
-                piece += f" DEFAULT {col.default}"
-            piece += "" if col.nullable else " NOT NULL"
-            parts.append(piece)
-        for index in obj.indexes:
-            if index.kind not in ("primarykey", "unique"):
-                continue
-            name = f"CONSTRAINT [{index.name}] " if index.name else ""
-            cols = ", ".join(f"[{c}]" for c in index.columns)
-            if index.kind == "primarykey":
-                clustered = " CLUSTERED" if index.clustered else ""
-                parts.append(f"    {name}PRIMARY KEY{clustered} ({cols})")
-            else:
-                parts.append(f"    {name}UNIQUE ({cols})")
-        for fk in self.graph.fk_out.get(obj.id, []):
-            cols = ", ".join(f"[{c}]" for c in fk.columns)
-            ref_cols = ", ".join(f"[{c}]" for c in fk.ref_columns)
-            ref_obj = self.catalog.objects.get(fk.ref_table)
-            ref = (ref_obj.qualified if ref_obj
-                   else fk.ref_table.replace("[", "").replace("]", ""))
-            parts.append(f"    CONSTRAINT [{fk.name}] FOREIGN KEY ({cols}) "
-                         f"REFERENCES {ref} ({ref_cols})")
-        for check in obj.checks:
-            name = f"CONSTRAINT [{check.name}] " if check.name else ""
-            parts.append(f"    {name}CHECK ({check.expression})")
-        lines.append(",\n".join(parts))
-        lines.append(");")
-        for index in obj.indexes:
-            if index.kind != "index":
-                continue
-            unique = "UNIQUE " if index.unique else ""
-            clustered = "CLUSTERED " if index.clustered else ""
-            cols = ", ".join(f"[{c}]" for c in index.columns)
-            stmt = (f"\nCREATE {unique}{clustered}INDEX [{index.name}] "
-                    f"ON {obj.display} ({cols})")
-            if index.included:
-                stmt += " INCLUDE (" + ", ".join(f"[{c}]" for c in index.included) + ")"
-            lines.append(stmt + ";")
-        return "\n".join(lines)
+        return ddl.create_table(obj, self.catalog, self.graph)
 
     # -- Detailseiten ------------------------------------------------------
 

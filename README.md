@@ -69,7 +69,9 @@ python3 -m dbdoku datenbank.dacpac fremd-db.dacpac -o docs/
 | `-t`, `--titel` | Titel der Dokumentation (Standard: „Datenbankkatalog“) |
 | `--volltext` | Quelltext der Routinen und Sichten durchsuchbar machen; schreibt zusätzlich `assets/quelltext.js` (bei großen Katalogen zweistellige MB), das die Suchseite erst lädt, wenn man dort „Quelltext durchsuchen“ einschaltet |
 | `--no-json` | `model.json` nicht mitschreiben (spart bei großen Katalogen einiges) |
-| `--check-links` | erzeugte Dokumentation auf tote Verweise prüfen: `python3 -m dbdoku --check-links docs/` |
+| `--llm` | zusätzlich `llm/` schreiben: kompaktes Markdown als Kontext für KI-Assistenten wie Claude (siehe unten) |
+| `--nur-llm` | nur `llm/` schreiben, keine HTML-Seiten |
+| `--check-links` | erzeugte Dokumentation (HTML und Markdown) auf tote Verweise prüfen: `python3 -m dbdoku --check-links docs/` |
 | `-q`, `--quiet` | keine Statusmeldungen |
 
 ## 📂 Aufbau der Ausgabe
@@ -82,6 +84,35 @@ docs/
     ├── index.html          Eckdaten, Abhängigkeitsdiagramm, meistgenutzte Tabellen
     └── tabellen/  sichten/  prozeduren/  funktionen/  trigger/  typen/
 ```
+
+## 🤖 Als Kontext für Claude und andere KI-Assistenten
+
+HTML ist für Menschen gemacht: Markup, Navigation und Diagramme kosten ein
+Vielfaches an Tokens, und `model.json` ist für ein Kontextfenster viel zu groß.
+Mit `--llm` (oder `--nur-llm`) entsteht daneben `docs/llm/`: derselbe Inhalt
+als knappes Markdown mit englischen Beschriftungen, eine Datei je Objekt,
+untereinander relativ verlinkt.
+
+```
+docs/llm/
+├── README.md               Anleitung für den Assistenten: Aufbau, Konventionen, Suchwege
+├── llms.txt                Datenbanken mit Objektzahlen
+└── <Datenbank>/
+    ├── index.md            jedes Objekt in einer Zeile, mit Beschreibung
+    ├── schema.sql          CREATE TABLE aller Tabellen samt Schlüsseln, Fremdschlüsseln,
+    │                       Checks und Indizes; Spaltenbeschreibungen als Kommentar
+    ├── relations.md        alle Fremdschlüssel und alle Zugriffe auf andere Datenbanken
+    └── tables/  views/  procedures/  functions/  triggers/  types/
+```
+
+**Claude Code:** Den Ordner im Projekt liegen lassen (oder mit `/add-dir`
+hinzunehmen) und in der `CLAUDE.md` darauf verweisen, z. B.
+„Datenbankdokumentation: siehe `docs/llm/README.md`“. Claude findet Objekte
+dann per Grep und folgt den Verweisen Datei für Datei, statt alles zu laden.
+
+**claude.ai-Projekt:** Für eine Datenbank `schema.sql`, `relations.md` und
+`index.md` hochladen – das reicht für Fragen zum Datenmodell. Einzelne
+Prozeduren bei Bedarf dazu.
 
 ## 📖 Was die Dokumentation enthält
 
@@ -213,6 +244,8 @@ dbdoku/
 ├── erd.py          Beziehungsdiagramme als Inline-SVG
 ├── highlight.py    T-SQL-Einfärbung
 ├── render.py       HTML-Erzeugung
+├── llm.py          Markdown-Ausgabe für KI-Assistenten (--llm)
+├── ddl.py          CREATE TABLE aus dem Modell (HTML und schema.sql)
 └── assets/         Stylesheet und Skript der erzeugten Seiten
 ```
 
